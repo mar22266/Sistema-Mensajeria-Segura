@@ -1,3 +1,4 @@
+from uuid import UUID
 from sqlalchemy.orm import Session
 
 from src.auth.criptografia import cifrarLlavePrivada, generarParLlavesUsuario
@@ -10,6 +11,11 @@ def obtenerUsuarioPorEmail(baseDatos: Session, email: str) -> Usuario | None:
     return baseDatos.query(Usuario).filter(Usuario.email == email).first()
 
 
+# Busca un usuario por id
+def obtenerUsuarioPorId(baseDatos: Session, userId: UUID) -> Usuario | None:
+    return baseDatos.query(Usuario).filter(Usuario.id == userId).first()
+
+
 # Registra un usuario con password protegida y llaves generadas
 def registrarUsuario(
     baseDatos: Session, displayName: str, email: str, password: str
@@ -19,8 +25,8 @@ def registrarUsuario(
     encryptedPrivateKey = cifrarLlavePrivada(password, privateKeyPem)
 
     usuarioNuevo = Usuario(
-        email=email,
-        displayName=displayName,
+        email=email.strip().lower(),
+        displayName=displayName.strip(),
         passwordHash=passwordHash,
         publicKey=publicKey,
         encryptedPrivateKey=encryptedPrivateKey,
@@ -36,7 +42,7 @@ def registrarUsuario(
 
 # Autentica al usuario con correo y contrasena
 def autenticarUsuario(baseDatos: Session, email: str, password: str) -> Usuario | None:
-    usuario = obtenerUsuarioPorEmail(baseDatos, email)
+    usuario = obtenerUsuarioPorEmail(baseDatos, email.strip().lower())
 
     if not usuario:
         return None

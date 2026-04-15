@@ -6,13 +6,14 @@ from src.auth.baseDatos import Base, SesionLocal, motorBaseDatos
 from src.auth.configuracion import configuracion
 from src.auth.esquemas import EstadoServicioSalida
 from src.auth.rutas import routerAuth
-
+from src.users.rutas import routerUsers
 
 Base.metadata.create_all(bind=motorBaseDatos)
 
 app = FastAPI(title=configuracion.APPNombre, version=configuracion.APIVersion)
 
 app.include_router(routerAuth)
+app.include_router(routerUsers)
 
 
 # Verifica que la API este activa

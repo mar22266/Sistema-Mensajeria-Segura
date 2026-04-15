@@ -42,3 +42,10 @@ class LoginUsuarioSalida(BaseModel):
     userId: UUID
     email: EmailStr
     displayName: str
+
+
+# clase para la salida de datos de la llave publica de un usuario
+class LlavePublicaUsuarioSalida(BaseModel):
+    userId: UUID
+    email: EmailStr
+    publicKey: str
