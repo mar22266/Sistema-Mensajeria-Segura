@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 
 from src.auth.criptografia import cifrarLlavePrivada, generarParLlavesUsuario
 from src.auth.modelos import Usuario
-from src.auth.seguridad import generarHashPassword
+from src.auth.seguridad import generarHashPassword, verificarHashPassword
 
 
 # Busca un usuario por correo
@@ -32,3 +32,18 @@ def registrarUsuario(
     baseDatos.refresh(usuarioNuevo)
 
     return usuarioNuevo
+
+
+# Autentica al usuario con correo y contrasena
+def autenticarUsuario(baseDatos: Session, email: str, password: str) -> Usuario | None:
+    usuario = obtenerUsuarioPorEmail(baseDatos, email)
+
+    if not usuario:
+        return None
+
+    passwordValido = verificarHashPassword(password, usuario.passwordHash)
+
+    if not passwordValido:
+        return None
+
+    return usuario

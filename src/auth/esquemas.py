@@ -27,3 +27,18 @@ class EstadoServicioSalida(BaseModel):
     estado: str
     servicio: str
     version: str
+
+
+# clase para la entrada de datos del login de usuario
+class LoginUsuarioEntrada(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+
+
+# clase para la salida de datos del login de usuario
+class LoginUsuarioSalida(BaseModel):
+    accessToken: str
+    tokenType: str
+    userId: UUID
+    email: EmailStr
+    displayName: str
