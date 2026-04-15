@@ -1,13 +1,18 @@
 from fastapi import FastAPI
 from sqlalchemy import text
 
-from src.auth.baseDatos import Base, motorBaseDatos, SesionLocal
+from src.auth import modelos
+from src.auth.baseDatos import Base, SesionLocal, motorBaseDatos
 from src.auth.configuracion import configuracion
 from src.auth.esquemas import EstadoServicioSalida
+from src.auth.rutas import routerAuth
 
 
 Base.metadata.create_all(bind=motorBaseDatos)
+
 app = FastAPI(title=configuracion.APPNombre, version=configuracion.APIVersion)
+
+app.include_router(routerAuth)
 
 
 # Verifica que la API este activa
