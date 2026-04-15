@@ -2,11 +2,13 @@ from fastapi import FastAPI
 from sqlalchemy import text
 
 from src.auth import modelos
+from src.crypto import modelos as modelosCrypto
 from src.auth.baseDatos import Base, SesionLocal, motorBaseDatos
 from src.auth.configuracion import configuracion
 from src.auth.esquemas import EstadoServicioSalida
 from src.auth.rutas import routerAuth
 from src.users.rutas import routerUsers
+
 
 Base.metadata.create_all(bind=motorBaseDatos)
 
