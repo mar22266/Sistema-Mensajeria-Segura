@@ -66,3 +66,21 @@ class MensajeDescifradoSalida(BaseModel):
 class RecuperarMensajesSalida(BaseModel):
     userId: UUID
     mensajes: list[MensajeDescifradoSalida]
+
+
+# clase para la salida de datos del envio de un mensaje grupal
+class EnviarMensajeGrupoSalida(BaseModel):
+    messageId: UUID
+    senderId: UUID
+    groupId: UUID
+    ciphertext: str
+    nonce: str
+    authTag: str
+    encryptedKeysGeneradas: int
+    createdAt: datetime
+
+
+# clase para la entrada de datos del envio de un mensaje grupal
+class EnviarMensajeGrupoEntrada(BaseModel):
+    senderId: UUID
+    plaintext: str = Field(min_length=1)
