@@ -4,12 +4,14 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
+# clase de esquemas para la validacion de datos de entrada y salida de la API
 class CrearGrupoEntrada(BaseModel):
     nombre: str = Field(min_length=1, max_length=100)
     creadoPor: UUID
     miembrosIds: list[UUID] = Field(min_length=1)
 
 
+# clase de esquema para la salida de datos del grupo creado
 class CrearGrupoSalida(BaseModel):
     groupId: UUID
     nombre: str
@@ -18,11 +20,13 @@ class CrearGrupoSalida(BaseModel):
     createdAt: datetime
 
 
+# clase de esquema para la entrada de datos del envio de un mensaje
 class EnviarMensajeEntrada(BaseModel):
     senderId: UUID
     plaintext: str = Field(min_length=1)
 
 
+# clase de esquema para la salida de datos del envio de un mensaje
 class EnviarMensajeSalida(BaseModel):
     messageId: UUID
     senderId: UUID
@@ -35,6 +39,7 @@ class EnviarMensajeSalida(BaseModel):
     createdAt: datetime
 
 
+# clase para la salida de mensajes cifrados de un usuario
 class MensajeUsuarioSalida(BaseModel):
     messageId: UUID
     senderId: UUID
@@ -47,6 +52,7 @@ class MensajeUsuarioSalida(BaseModel):
     createdAt: datetime
 
 
+# clase para la salida de mensajes descifrados de un usuario
 class MensajeDescifradoSalida(BaseModel):
     messageId: UUID
     senderId: UUID
@@ -54,3 +60,9 @@ class MensajeDescifradoSalida(BaseModel):
     groupId: UUID | None
     plaintext: str
     createdAt: datetime
+
+
+# clase para recuperar mensajes descifrados de un usuario
+class RecuperarMensajesSalida(BaseModel):
+    userId: UUID
+    mensajes: list[MensajeDescifradoSalida]

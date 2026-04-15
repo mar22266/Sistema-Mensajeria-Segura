@@ -1,7 +1,14 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+    CheckConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -52,6 +59,12 @@ class GrupoMiembro(Base):
 # clase de modelo para la tabla de mensajes en la base de datos
 class Mensaje(Base):
     __tablename__ = "mensajes"
+    __table_args__ = (
+        CheckConstraint(
+            '(("recipientId" IS NOT NULL AND "groupId" IS NULL) OR ("recipientId" IS NULL AND "groupId" IS NOT NULL))',
+            name="ck_mensajes_individual_o_grupal",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
