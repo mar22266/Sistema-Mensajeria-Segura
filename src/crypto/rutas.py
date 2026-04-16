@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from src.auth.baseDatos import obtenerBaseDatos
+from src.auth.dependencias import obtenerUsuarioActual
+from src.auth.modelos import Usuario
 from src.crypto.esquemas import (
     CrearGrupoEntrada,
     CrearGrupoSalida,
@@ -29,8 +31,16 @@ routerMessages = APIRouter(tags=["messages", "groups"])
     "/groups", response_model=CrearGrupoSalida, status_code=status.HTTP_201_CREATED
 )
 def crearGrupoRuta(
-    datosEntrada: CrearGrupoEntrada, baseDatos: Session = Depends(obtenerBaseDatos)
+    datosEntrada: CrearGrupoEntrada,
+    usuarioActual: Usuario = Depends(obtenerUsuarioActual),
+    baseDatos: Session = Depends(obtenerBaseDatos),
 ):
+    if str(usuarioActual.id) != str(datosEntrada.creadoPor):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No puede crear un grupo en nombre de otro usuario",
+        )
+
     try:
         grupo, miembrosIds = crearGrupo(
             baseDatos=baseDatos,
@@ -61,8 +71,15 @@ def crearGrupoRuta(
 def enviarMensajeRuta(
     destId: UUID,
     datosEntrada: EnviarMensajeEntrada,
+    usuarioActual: Usuario = Depends(obtenerUsuarioActual),
     baseDatos: Session = Depends(obtenerBaseDatos),
 ):
+    if str(usuarioActual.id) != str(datosEntrada.senderId):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No puede enviar mensajes en nombre de otro usuario",
+        )
+
     try:
         mensaje = enviarMensajeIndividual(
             baseDatos=baseDatos,
@@ -104,8 +121,15 @@ def enviarMensajeRuta(
 def enviarMensajeGrupalRuta(
     groupId: UUID,
     datosEntrada: EnviarMensajeGrupoEntrada,
+    usuarioActual: Usuario = Depends(obtenerUsuarioActual),
     baseDatos: Session = Depends(obtenerBaseDatos),
 ):
+    if str(usuarioActual.id) != str(datosEntrada.senderId):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No puede enviar mensajes grupales en nombre de otro usuario",
+        )
+
     try:
         mensaje, encryptedKeysGeneradas = enviarMensajeGrupal(
             baseDatos=baseDatos,
@@ -148,7 +172,7 @@ def enviarMensajeGrupalRuta(
     )
 
 
-# Recupera y descifra los mensajes de un usuario
+# Recupera y descifra los mensajes del usuario autenticado
 @routerMessages.get(
     "/messages/{userId}",
     response_model=RecuperarMensajesSalida,
@@ -157,8 +181,15 @@ def enviarMensajeGrupalRuta(
 def obtenerMensajesUsuarioRuta(
     userId: UUID,
     password: str = Query(..., min_length=8),
+    usuarioActual: Usuario = Depends(obtenerUsuarioActual),
     baseDatos: Session = Depends(obtenerBaseDatos),
 ):
+    if str(usuarioActual.id) != str(userId):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No puede recuperar mensajes de otro usuario",
+        )
+
     try:
         mensajes = recuperarMensajesDescifradosUsuario(
             baseDatos=baseDatos, userId=userId, passwordPlano=password

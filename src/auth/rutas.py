@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from src.auth.baseDatos import obtenerBaseDatos
+from src.auth.dependencias import obtenerUsuarioActual
 from src.auth.esquemas import (
     HabilitarMfaEntrada,
     HabilitarMfaSalida,
@@ -16,6 +17,7 @@ from src.auth.esquemas import (
     VerificarMfaEntrada,
     VerificarMfaSalida,
 )
+from src.auth.modelos import Usuario
 from src.auth.servicio import (
     completarLoginConMfa,
     habilitarMfaUsuario,
@@ -78,13 +80,21 @@ def loginUsuarioRuta(
     return LoginUsuarioSalida(**resultado)
 
 
-# Activa MFA para un usuario y retorna QR TOTP
+# Activa MFA para el usuario autenticado y retorna QR TOTP
 @routerAuth.post(
     "/mfa/enable", response_model=HabilitarMfaSalida, status_code=status.HTTP_200_OK
 )
 def habilitarMfaRuta(
-    datosEntrada: HabilitarMfaEntrada, baseDatos: Session = Depends(obtenerBaseDatos)
+    datosEntrada: HabilitarMfaEntrada,
+    usuarioActual: Usuario = Depends(obtenerUsuarioActual),
+    baseDatos: Session = Depends(obtenerBaseDatos),
 ):
+    if str(usuarioActual.id) != str(datosEntrada.userId):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No puede activar MFA para otro usuario",
+        )
+
     try:
         resultado = habilitarMfaUsuario(baseDatos=baseDatos, userId=datosEntrada.userId)
     except ValueError as error:
