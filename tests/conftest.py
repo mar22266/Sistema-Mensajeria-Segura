@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from src.api.main import app
 from src.auth.baseDatos import SesionLocal
 from src.auth.modelos import Usuario
+from src.blockchain.modelos import BloqueBlockchain
 from src.crypto.modelos import Grupo, GrupoMiembro, Mensaje, MensajeDestinatario
 
 
@@ -18,6 +19,7 @@ def limpiarBaseDatos():
         sesion.query(Mensaje).delete()
         sesion.query(GrupoMiembro).delete()
         sesion.query(Grupo).delete()
+        sesion.query(BloqueBlockchain).delete()
         sesion.query(Usuario).delete()
         sesion.commit()
 
@@ -27,6 +29,7 @@ def limpiarBaseDatos():
         sesion.query(Mensaje).delete()
         sesion.query(GrupoMiembro).delete()
         sesion.query(Grupo).delete()
+        sesion.query(BloqueBlockchain).delete()
         sesion.query(Usuario).delete()
         sesion.commit()
     finally:
@@ -78,7 +81,7 @@ def registrarUsuario(cliente, displayName, email, password):
     return respuesta.json()
 
 
-# Crea tres usuarios para pruebas del modulo 2
+# Crea tres usuarios para pruebas del modulo 2 y 3
 @pytest.fixture
 def usuariosPrueba(cliente):
     usuarioA = registrarUsuario(cliente, "Usuario A", "a@correo.com", "ClaveSegura123")

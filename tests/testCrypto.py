@@ -9,7 +9,11 @@ def testEnviarYRecuperarMensajeIndividual(cliente, usuariosPrueba):
 
     respuestaEnvio = cliente.post(
         f"/messages/{destId}",
-        json={"senderId": senderId, "plaintext": "Hola mensaje individual cifrado"},
+        json={
+            "senderId": senderId,
+            "senderPassword": "ClaveSegura123",
+            "plaintext": "Hola mensaje individual cifrado",
+        },
     )
 
     assert respuestaEnvio.status_code == 201
@@ -97,7 +101,11 @@ def testEnviarYRecuperarMensajeGrupal(cliente, usuariosPrueba):
 
     respuestaEnvio = cliente.post(
         f"/groups/{groupId}/messages",
-        json={"senderId": miembroB, "plaintext": "Hola grupo este mensaje es cifrado"},
+        json={
+            "senderId": miembroB,
+            "senderPassword": "ClaveSegura123",
+            "plaintext": "Hola grupo este mensaje es cifrado",
+        },
     )
 
     assert respuestaEnvio.status_code == 201
@@ -146,7 +154,11 @@ def testRecuperarMensajesConPasswordIncorrecta(cliente, usuariosPrueba):
     destId = usuariosPrueba["b"]["id"]
     cliente.post(
         f"/messages/{destId}",
-        json={"senderId": senderId, "plaintext": "Mensaje protegido"},
+        json={
+            "senderId": senderId,
+            "senderPassword": "ClaveSegura123",
+            "plaintext": "Mensaje protegido",
+        },
     )
 
     respuesta = cliente.get(f"/messages/{destId}?password=ClaveIncorrecta999")
@@ -163,7 +175,11 @@ def testEnviarMensajeAUsuarioInexistente(cliente, usuariosPrueba, uuidInexistent
 
     respuesta = cliente.post(
         f"/messages/{uuidInexistente}",
-        json={"senderId": senderId, "plaintext": "Mensaje a destino inexistente"},
+        json={
+            "senderId": senderId,
+            "senderPassword": "ClaveSegura123",
+            "plaintext": "Mensaje a destino inexistente",
+        },
     )
 
     assert respuesta.status_code == 404
