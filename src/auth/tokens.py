@@ -5,16 +5,42 @@ import jwt
 from src.auth.configuracion import configuracion
 
 
-# Genera un token JWT para el usuario autenticado
-def generarTokenAcceso(datos: dict) -> str:
+# Genera un token jwt generico
+def generarToken(datos: dict, minutosExpiracion: int, tipoToken: str) -> str:
     datosToken = datos.copy()
-    fechaExpiracion = datetime.now(UTC) + timedelta(
-        minutes=configuracion.JWTMinutosExpiracion
-    )
+
+    fechaActual = datetime.now(UTC)
+    fechaExpiracion = fechaActual + timedelta(minutes=minutosExpiracion)
 
     datosToken["exp"] = fechaExpiracion
-    datosToken["iat"] = datetime.now(UTC)
+    datosToken["iat"] = fechaActual
+    datosToken["type"] = tipoToken
 
     return jwt.encode(
         datosToken, configuracion.JWTClaveSecreta, algorithm=configuracion.JWTAlgoritmo
+    )
+
+
+# Genera un access token
+def generarTokenAcceso(datos: dict) -> str:
+    return generarToken(
+        datos=datos,
+        minutosExpiracion=configuracion.JWTMinutosExpiracion,
+        tipoToken="access",
+    )
+
+
+# Genera un refresh token
+def generarTokenRefresh(datos: dict) -> str:
+    return generarToken(
+        datos=datos,
+        minutosExpiracion=configuracion.JWTMinutosExpiracion * 24,
+        tipoToken="refresh",
+    )
+
+
+# Decodifica y valida un jwt
+def decodificarToken(token: str) -> dict:
+    return jwt.decode(
+        token, configuracion.JWTClaveSecreta, algorithms=[configuracion.JWTAlgoritmo]
     )
