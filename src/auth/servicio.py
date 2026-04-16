@@ -1,7 +1,14 @@
 from uuid import UUID
+
 from sqlalchemy.orm import Session
 
 from src.auth.criptografia import cifrarLlavePrivada, generarParLlavesUsuario
+from src.auth.mfa import (
+    construirUrlTotp,
+    generarQrBase64,
+    generarSecretoTotp,
+    verificarCodigoTotp,
+)
 from src.auth.modelos import Usuario
 from src.auth.seguridad import generarHashPassword, verificarHashPassword
 
@@ -53,3 +60,47 @@ def autenticarUsuario(baseDatos: Session, email: str, password: str) -> Usuario 
         return None
 
     return usuario
+
+
+# Habilita MFA para un usuario y retorna datos del QR
+def habilitarMfaUsuario(baseDatos: Session, userId: UUID) -> dict:
+    usuario = obtenerUsuarioPorId(baseDatos, userId)
+
+    if not usuario:
+        raise ValueError("Usuario no encontrado")
+
+    if not usuario.totpSecret:
+        usuario.totpSecret = generarSecretoTotp()
+        baseDatos.commit()
+        baseDatos.refresh(usuario)
+
+    otpauthUrl = construirUrlTotp(email=usuario.email, secretoTotp=usuario.totpSecret)
+
+    qrBase64 = generarQrBase64(otpauthUrl)
+
+    return {
+        "userId": usuario.id,
+        "email": usuario.email,
+        "mfaActiva": True,
+        "otpauthUrl": otpauthUrl,
+        "qrBase64": qrBase64,
+    }
+
+
+# Verifica un codigo TOTP del usuario
+def verificarMfaUsuario(baseDatos: Session, email: str, codigoTotp: str) -> dict:
+    usuario = obtenerUsuarioPorEmail(baseDatos, email.strip().lower())
+
+    if not usuario:
+        raise ValueError("Usuario no encontrado")
+
+    if not usuario.totpSecret:
+        raise ValueError("El usuario no tiene MFA activado")
+
+    codigoValido = verificarCodigoTotp(usuario.totpSecret, codigoTotp)
+
+    return {
+        "email": usuario.email,
+        "codigoValido": codigoValido,
+        "mensaje": "Codigo TOTP valido" if codigoValido else "Codigo TOTP invalido",
+    }

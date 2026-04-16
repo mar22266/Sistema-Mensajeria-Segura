@@ -22,13 +22,6 @@ class RegistroUsuarioSalida(BaseModel):
     createdAt: datetime
 
 
-# clase para la salida de datos del estado del servicio
-class EstadoServicioSalida(BaseModel):
-    estado: str
-    servicio: str
-    version: str
-
-
 # clase para la entrada de datos del login de usuario
 class LoginUsuarioEntrada(BaseModel):
     email: EmailStr
@@ -44,8 +37,42 @@ class LoginUsuarioSalida(BaseModel):
     displayName: str
 
 
+# clase para la entrada de datos de habilitacion de MFA
+class HabilitarMfaEntrada(BaseModel):
+    userId: UUID
+
+
+# clase para la salida de datos de habilitacion de MFA
+class HabilitarMfaSalida(BaseModel):
+    userId: UUID
+    email: EmailStr
+    mfaActiva: bool
+    otpauthUrl: str
+    qrBase64: str
+
+
+# clase para la entrada de datos de verificacion de MFA
+class VerificarMfaEntrada(BaseModel):
+    email: EmailStr
+    codigoTotp: str = Field(min_length=6, max_length=6)
+
+
+# clase para la salida de datos de verificacion de MFA
+class VerificarMfaSalida(BaseModel):
+    email: EmailStr
+    codigoValido: bool
+    mensaje: str
+
+
 # clase para la salida de datos de la llave publica de un usuario
 class LlavePublicaUsuarioSalida(BaseModel):
     userId: UUID
     email: EmailStr
     publicKey: str
+
+
+# clase para la salida de datos del estado del servicio
+class EstadoServicioSalida(BaseModel):
+    estado: str
+    servicio: str
+    version: str

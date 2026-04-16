@@ -3,15 +3,21 @@ from sqlalchemy.orm import Session
 
 from src.auth.baseDatos import obtenerBaseDatos
 from src.auth.esquemas import (
-    RegistroUsuarioEntrada,
-    RegistroUsuarioSalida,
+    HabilitarMfaEntrada,
+    HabilitarMfaSalida,
     LoginUsuarioEntrada,
     LoginUsuarioSalida,
+    RegistroUsuarioEntrada,
+    RegistroUsuarioSalida,
+    VerificarMfaEntrada,
+    VerificarMfaSalida,
 )
 from src.auth.servicio import (
+    autenticarUsuario,
+    habilitarMfaUsuario,
     obtenerUsuarioPorEmail,
     registrarUsuario,
-    autenticarUsuario,
+    verificarMfaUsuario,
 )
 from src.auth.tokens import generarTokenAcceso
 
@@ -77,3 +83,48 @@ def loginUsuarioRuta(
         email=usuario.email,
         displayName=usuario.displayName,
     )
+
+
+# Activa MFA para un usuario y retorna QR TOTP
+@routerAuth.post(
+    "/mfa/enable", response_model=HabilitarMfaSalida, status_code=status.HTTP_200_OK
+)
+def habilitarMfaRuta(
+    datosEntrada: HabilitarMfaEntrada, baseDatos: Session = Depends(obtenerBaseDatos)
+):
+    try:
+        resultado = habilitarMfaUsuario(baseDatos=baseDatos, userId=datosEntrada.userId)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(error)
+        ) from error
+
+    return HabilitarMfaSalida(**resultado)
+
+
+# Verifica codigo TOTP del usuario
+@routerAuth.post(
+    "/mfa/verify", response_model=VerificarMfaSalida, status_code=status.HTTP_200_OK
+)
+def verificarMfaRuta(
+    datosEntrada: VerificarMfaEntrada, baseDatos: Session = Depends(obtenerBaseDatos)
+):
+    try:
+        resultado = verificarMfaUsuario(
+            baseDatos=baseDatos,
+            email=datosEntrada.email,
+            codigoTotp=datosEntrada.codigoTotp,
+        )
+    except ValueError as error:
+        detalle = str(error)
+
+        if detalle == "Usuario no encontrado":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=detalle
+            ) from error
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=detalle
+        ) from error
+
+    return VerificarMfaSalida(**resultado)
