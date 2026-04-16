@@ -81,6 +81,10 @@ class MensajeDescifradoSalida(BaseModel):
     recipientId: UUID | None
     groupId: UUID | None
     plaintext: str
+    signature: str | None
+    estadoFirma: str
+    firmaVerificada: bool
+    alerta: str | None
     createdAt: datetime
 
 

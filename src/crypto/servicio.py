@@ -12,7 +12,11 @@ from src.crypto.seguridad import (
     descifrarMensajeAesGcm,
     generarClaveAesEfimera,
 )
-from src.signatures.seguridad import calcularHashSha256Texto, firmarHashMensajeRsaPss
+from src.signatures.seguridad import (
+    calcularHashSha256Texto,
+    firmarHashMensajeRsaPss,
+    verificarFirmaMensajeRsaPss,
+)
 
 
 # Busca un usuario por id
@@ -231,7 +235,7 @@ def obtenerMensajesIndividualesRecibidosUsuario(
 def obtenerMensajesGrupalesUsuario(
     baseDatos: Session, userId: UUID
 ) -> list[tuple[Mensaje, MensajeDestinatario]]:
-    registros = (
+    return (
         baseDatos.query(Mensaje, MensajeDestinatario)
         .join(MensajeDestinatario, MensajeDestinatario.messageId == Mensaje.id)
         .filter(MensajeDestinatario.userId == userId)
@@ -239,8 +243,6 @@ def obtenerMensajesGrupalesUsuario(
         .order_by(Mensaje.createdAt.asc())
         .all()
     )
-
-    return registros
 
 
 # Descifra un mensaje individual para el usuario destinatario
@@ -285,6 +287,34 @@ def descifrarMensajeGrupalUsuario(
     )
 
 
+# Verifica la firma del mensaje usando la llave publica del remitente
+def evaluarFirmaMensaje(
+    mensaje: Mensaje, plaintext: str, remitente: Usuario | None
+) -> tuple[bool, str, str | None]:
+    if not remitente:
+        return (
+            False,
+            "NO_VERIFICADO",
+            "No fue posible obtener la llave publica del remitente",
+        )
+
+    if not mensaje.signature:
+        return False, "NO_VERIFICADO", "El mensaje no contiene firma digital"
+
+    messageHash = calcularHashSha256Texto(plaintext)
+
+    firmaVerificada = verificarFirmaMensajeRsaPss(
+        messageHashHex=messageHash,
+        firmaBase64=mensaje.signature,
+        publicKeyPem=remitente.publicKey,
+    )
+
+    if firmaVerificada:
+        return True, "VERIFICADO", None
+
+    return False, "NO_VERIFICADO", "Alerta: la firma digital del mensaje no es valida"
+
+
 # Recupera y descifra los mensajes de un usuario
 def recuperarMensajesDescifradosUsuario(
     baseDatos: Session, userId: UUID, passwordPlano: str
@@ -305,6 +335,12 @@ def recuperarMensajesDescifradosUsuario(
             mensaje=mensaje, usuarioDestino=usuario, passwordPlano=passwordPlano
         )
 
+        remitente = obtenerUsuarioPorId(baseDatos, mensaje.senderId)
+
+        firmaVerificada, estadoFirma, alerta = evaluarFirmaMensaje(
+            mensaje=mensaje, plaintext=plaintext, remitente=remitente
+        )
+
         mensajesDescifrados.append(
             {
                 "messageId": mensaje.id,
@@ -312,6 +348,10 @@ def recuperarMensajesDescifradosUsuario(
                 "recipientId": mensaje.recipientId,
                 "groupId": mensaje.groupId,
                 "plaintext": plaintext,
+                "signature": mensaje.signature,
+                "estadoFirma": estadoFirma,
+                "firmaVerificada": firmaVerificada,
+                "alerta": alerta,
                 "createdAt": mensaje.createdAt,
             }
         )
@@ -326,6 +366,12 @@ def recuperarMensajesDescifradosUsuario(
             passwordPlano=passwordPlano,
         )
 
+        remitente = obtenerUsuarioPorId(baseDatos, mensaje.senderId)
+
+        firmaVerificada, estadoFirma, alerta = evaluarFirmaMensaje(
+            mensaje=mensaje, plaintext=plaintext, remitente=remitente
+        )
+
         mensajesDescifrados.append(
             {
                 "messageId": mensaje.id,
@@ -333,6 +379,10 @@ def recuperarMensajesDescifradosUsuario(
                 "recipientId": mensaje.recipientId,
                 "groupId": mensaje.groupId,
                 "plaintext": plaintext,
+                "signature": mensaje.signature,
+                "estadoFirma": estadoFirma,
+                "firmaVerificada": firmaVerificada,
+                "alerta": alerta,
                 "createdAt": mensaje.createdAt,
             }
         )
