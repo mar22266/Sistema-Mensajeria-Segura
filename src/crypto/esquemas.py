@@ -20,9 +20,17 @@ class CrearGrupoSalida(BaseModel):
     createdAt: datetime
 
 
-# clase de esquema para la entrada de datos del envio de un mensaje
+# clase para la entrada de datos del envio de un mensaje
 class EnviarMensajeEntrada(BaseModel):
     senderId: UUID
+    senderPassword: str = Field(min_length=8, max_length=128)
+    plaintext: str = Field(min_length=1)
+
+
+# clase para la entrada de datos del envio de un mensaje grupal
+class EnviarMensajeGrupoEntrada(BaseModel):
+    senderId: UUID
+    senderPassword: str = Field(min_length=8, max_length=128)
     plaintext: str = Field(min_length=1)
 
 
@@ -36,6 +44,20 @@ class EnviarMensajeSalida(BaseModel):
     encryptedKey: str
     nonce: str
     authTag: str
+    signature: str | None
+    createdAt: datetime
+
+
+# clase para la salida de datos del envio de un mensaje grupal
+class EnviarMensajeGrupoSalida(BaseModel):
+    messageId: UUID
+    senderId: UUID
+    groupId: UUID
+    ciphertext: str
+    nonce: str
+    authTag: str
+    signature: str | None
+    encryptedKeysGeneradas: int
     createdAt: datetime
 
 
@@ -66,21 +88,3 @@ class MensajeDescifradoSalida(BaseModel):
 class RecuperarMensajesSalida(BaseModel):
     userId: UUID
     mensajes: list[MensajeDescifradoSalida]
-
-
-# clase para la salida de datos del envio de un mensaje grupal
-class EnviarMensajeGrupoSalida(BaseModel):
-    messageId: UUID
-    senderId: UUID
-    groupId: UUID
-    ciphertext: str
-    nonce: str
-    authTag: str
-    encryptedKeysGeneradas: int
-    createdAt: datetime
-
-
-# clase para la entrada de datos del envio de un mensaje grupal
-class EnviarMensajeGrupoEntrada(BaseModel):
-    senderId: UUID
-    plaintext: str = Field(min_length=1)

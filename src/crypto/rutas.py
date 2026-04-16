@@ -52,7 +52,7 @@ def crearGrupoRuta(
     )
 
 
-# Envia un mensaje individual cifrado
+# Envia un mensaje individual cifrado y firmado
 @routerMessages.post(
     "/messages/{destId}",
     response_model=EnviarMensajeSalida,
@@ -68,11 +68,17 @@ def enviarMensajeRuta(
             baseDatos=baseDatos,
             senderId=datosEntrada.senderId,
             destId=destId,
+            senderPassword=datosEntrada.senderPassword,
             plaintext=datosEntrada.plaintext,
         )
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(error)
+        ) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fue posible firmar y enviar el mensaje",
         ) from error
 
     return EnviarMensajeSalida(
@@ -84,11 +90,12 @@ def enviarMensajeRuta(
         encryptedKey=mensaje.encryptedKey or "",
         nonce=mensaje.nonce,
         authTag=mensaje.authTag,
+        signature=mensaje.signature,
         createdAt=mensaje.createdAt,
     )
 
 
-# Envia un mensaje grupal cifrado
+# Envia un mensaje grupal cifrado y firmado
 @routerMessages.post(
     "/groups/{groupId}/messages",
     response_model=EnviarMensajeGrupoSalida,
@@ -104,6 +111,7 @@ def enviarMensajeGrupalRuta(
             baseDatos=baseDatos,
             senderId=datosEntrada.senderId,
             groupId=groupId,
+            senderPassword=datosEntrada.senderPassword,
             plaintext=datosEntrada.plaintext,
         )
     except ValueError as error:
@@ -121,6 +129,11 @@ def enviarMensajeGrupalRuta(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=detalle
         ) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fue posible firmar y enviar el mensaje grupal",
+        ) from error
 
     return EnviarMensajeGrupoSalida(
         messageId=mensaje.id,
@@ -129,6 +142,7 @@ def enviarMensajeGrupalRuta(
         ciphertext=mensaje.ciphertext,
         nonce=mensaje.nonce,
         authTag=mensaje.authTag,
+        signature=mensaje.signature,
         encryptedKeysGeneradas=encryptedKeysGeneradas,
         createdAt=mensaje.createdAt,
     )

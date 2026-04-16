@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from src.auth.modelos import Usuario
+from src.blockchain.servicio import registrarTransaccionBlockchain
 from src.crypto.modelos import Grupo, GrupoMiembro, Mensaje, MensajeDestinatario
 from src.crypto.seguridad import (
     cifrarClaveAesConRsaOaep,
@@ -11,6 +12,7 @@ from src.crypto.seguridad import (
     descifrarMensajeAesGcm,
     generarClaveAesEfimera,
 )
+from src.signatures.seguridad import calcularHashSha256Texto, firmarHashMensajeRsaPss
 
 
 # Busca un usuario por id
@@ -67,15 +69,27 @@ def crearGrupo(
     return grupoNuevo, [usuario.id for usuario in usuariosExistentes]
 
 
-# Crea y almacena un mensaje individual cifrado
+# Crea y almacena un mensaje individual cifrado y firmado
 def enviarMensajeIndividual(
-    baseDatos: Session, senderId: UUID, destId: UUID, plaintext: str
+    baseDatos: Session,
+    senderId: UUID,
+    destId: UUID,
+    senderPassword: str,
+    plaintext: str,
 ) -> Mensaje:
     remitente = obtenerUsuarioPorId(baseDatos, senderId)
     destinatario = obtenerUsuarioPorId(baseDatos, destId)
 
     if not remitente or not destinatario:
         raise ValueError("Remitente o destinatario no encontrado")
+
+    messageHash = calcularHashSha256Texto(plaintext)
+
+    signature = firmarHashMensajeRsaPss(
+        messageHashHex=messageHash,
+        encryptedPrivateKey=remitente.encryptedPrivateKey,
+        passwordPlano=senderPassword,
+    )
 
     claveAes = generarClaveAesEfimera()
 
@@ -95,19 +109,30 @@ def enviarMensajeIndividual(
         encryptedKey=encryptedKey,
         nonce=nonce,
         authTag=authTag,
-        signature=None,
+        signature=signature,
     )
 
     baseDatos.add(mensajeNuevo)
     baseDatos.commit()
     baseDatos.refresh(mensajeNuevo)
 
+    registrarTransaccionBlockchain(
+        baseDatos=baseDatos,
+        senderId=str(senderId),
+        recipientId=str(destId),
+        messageHash=messageHash,
+    )
+
     return mensajeNuevo
 
 
-# Crea y almacena un mensaje grupal cifrado
+# Crea y almacena un mensaje grupal cifrado y firmado
 def enviarMensajeGrupal(
-    baseDatos: Session, senderId: UUID, groupId: UUID, plaintext: str
+    baseDatos: Session,
+    senderId: UUID,
+    groupId: UUID,
+    senderPassword: str,
+    plaintext: str,
 ) -> tuple[Mensaje, int]:
     remitente = obtenerUsuarioPorId(baseDatos, senderId)
     grupo = obtenerGrupoPorId(baseDatos, groupId)
@@ -128,6 +153,14 @@ def enviarMensajeGrupal(
     if senderId not in idsMiembros:
         raise ValueError("El remitente no pertenece al grupo")
 
+    messageHash = calcularHashSha256Texto(plaintext)
+
+    signature = firmarHashMensajeRsaPss(
+        messageHashHex=messageHash,
+        encryptedPrivateKey=remitente.encryptedPrivateKey,
+        passwordPlano=senderPassword,
+    )
+
     claveAes = generarClaveAesEfimera()
 
     ciphertext, nonce, authTag = cifrarMensajeAesGcm(
@@ -142,7 +175,7 @@ def enviarMensajeGrupal(
         encryptedKey=None,
         nonce=nonce,
         authTag=authTag,
-        signature=None,
+        signature=signature,
     )
 
     baseDatos.add(mensajeNuevo)
@@ -171,6 +204,13 @@ def enviarMensajeGrupal(
 
     baseDatos.commit()
     baseDatos.refresh(mensajeNuevo)
+
+    registrarTransaccionBlockchain(
+        baseDatos=baseDatos,
+        senderId=str(senderId),
+        recipientId=str(groupId),
+        messageHash=messageHash,
+    )
 
     return mensajeNuevo, cantidadEncryptedKeys
 
