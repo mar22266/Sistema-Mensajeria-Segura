@@ -179,6 +179,8 @@ def verificarIntegridadBlockchain(baseDatos: Session) -> tuple[bool, str, int]:
     if not bloques:
         return False, "La cadena esta vacia", 0
     bloqueGenesis = bloques[0]
+    if bloqueGenesis.indice != 0:
+        return False, "El bloque genesis no tiene indice 0", len(bloques)
     if bloqueGenesis.previousHash != "0" * 64:
         return False, "El bloque genesis tiene previousHash invalido", len(bloques)
     for posicion, bloque in enumerate(bloques):
@@ -206,6 +208,8 @@ def verificarIntegridadBlockchain(baseDatos: Session) -> tuple[bool, str, int]:
             continue
 
         bloqueAnterior = bloques[posicion - 1]
+        if bloque.indice != bloqueAnterior.indice + 1:
+            return False, f"Secuencia invalida en bloque {bloque.indice}", len(bloques)
         if bloque.previousHash != bloqueAnterior.hashActual:
             return (
                 False,

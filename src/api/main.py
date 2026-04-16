@@ -1,8 +1,11 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from sqlalchemy import text
 
 from src.auth import modelos
 from src.blockchain import modelos as modelosBlockchain
+from src.blockchain.rutas import routerBlockchain
 from src.blockchain.servicio import asegurarBloqueGenesis
 from src.crypto import modelos as modelosCrypto
 from src.auth.baseDatos import Base, SesionLocal, motorBaseDatos
@@ -15,21 +18,28 @@ from src.users.rutas import routerUsers
 
 Base.metadata.create_all(bind=motorBaseDatos)
 
-app = FastAPI(title=configuracion.APPNombre, version=configuracion.APIVersion)
+
+# Inicializa recursos base del sistema
+@asynccontextmanager
+async def cicloVida(app: FastAPI):
+    sesion = SesionLocal()
+    try:
+        asegurarBloqueGenesis(sesion)
+        yield
+    finally:
+        sesion.close()
+
+
+app = FastAPI(
+    title=configuracion.APPNombre,
+    version=configuracion.APIVersion,
+    lifespan=cicloVida,
+)
 
 app.include_router(routerAuth)
 app.include_router(routerUsers)
 app.include_router(routerMessages)
-
-
-# Inicializa recursos base del sistema
-@app.on_event("startup")
-def inicializarSistema():
-    sesion = SesionLocal()
-    try:
-        asegurarBloqueGenesis(sesion)
-    finally:
-        sesion.close()
+app.include_router(routerBlockchain)
 
 
 # Verifica que la API este activa
