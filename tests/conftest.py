@@ -1,5 +1,6 @@
 import uuid
 
+import pyotp
 import pytest
 from fastapi.testclient import TestClient
 
@@ -93,3 +94,24 @@ def usuariosPrueba(cliente):
         "b": usuarioB,
         "c": usuarioC,
     }
+
+
+# Obtiene el secreto totp real de un usuario
+def obtenerSecretoTotpPorEmail(email):
+    sesion = SesionLocal()
+    try:
+        usuario = sesion.query(Usuario).filter(Usuario.email == email).first()
+        return usuario.totpSecret if usuario else None
+    finally:
+        sesion.close()
+
+
+# Genera un codigo totp valido para un usuario
+def generarCodigoTotp(email):
+    secreto = obtenerSecretoTotpPorEmail(email)
+
+    if not secreto:
+        raise ValueError("El usuario no tiene MFA activado")
+
+    totp = pyotp.TOTP(secreto)
+    return totp.now()

@@ -1,19 +1,26 @@
 from src.auth.baseDatos import SesionLocal
 from src.blockchain.modelos import BloqueBlockchain
-from src.crypto.modelos import Grupo, GrupoMiembro, Mensaje, MensajeDestinatario
+from src.crypto.modelos import Mensaje, MensajeDestinatario
 
 
-# Retorna la cantidad de bloques actuales
-def obtenerCantidadBloques():
-    sesion = SesionLocal()
-    try:
-        return sesion.query(BloqueBlockchain).count()
-    finally:
-        sesion.close()
+# Obtiene access token para un usuario
+def obtenerAccessToken(cliente, email, password):
+    respuesta = cliente.post(
+        "/auth/login",
+        json={
+            "email": email,
+            "password": password,
+        },
+    )
+
+    assert respuesta.status_code == 200
+    return respuesta.json()["accessToken"]
 
 
 # Crea un grupo de prueba y retorna su id
 def crearGrupoPrueba(cliente, usuariosPrueba):
+    accessTokenA = obtenerAccessToken(cliente, "a@correo.com", "ClaveSegura123")
+
     respuesta = cliente.post(
         "/groups",
         json={
@@ -24,6 +31,7 @@ def crearGrupoPrueba(cliente, usuariosPrueba):
                 usuariosPrueba["c"]["id"],
             ],
         },
+        headers={"Authorization": f"Bearer {accessTokenA}"},
     )
 
     assert respuesta.status_code == 201
@@ -46,6 +54,8 @@ def testBlockchainDebeCrearBloqueGenesis(cliente):
 
 # Verifica envio individual firmado y registro automatico en blockchain
 def testEnviarMensajeIndividualFirmadoGeneraFirmaYBloque(cliente, usuariosPrueba):
+    accessTokenA = obtenerAccessToken(cliente, "a@correo.com", "ClaveSegura123")
+
     respuesta = cliente.post(
         f"/messages/{usuariosPrueba['b']['id']}",
         json={
@@ -53,6 +63,7 @@ def testEnviarMensajeIndividualFirmadoGeneraFirmaYBloque(cliente, usuariosPrueba
             "senderPassword": "ClaveSegura123",
             "plaintext": "Mensaje individual firmado para blockchain",
         },
+        headers={"Authorization": f"Bearer {accessTokenA}"},
     )
 
     assert respuesta.status_code == 201
@@ -88,6 +99,9 @@ def testEnviarMensajeIndividualFirmadoGeneraFirmaYBloque(cliente, usuariosPrueba
 
 # Verifica recuperacion de mensaje con firma valida
 def testRecuperarMensajeDebeVerificarFirmaValida(cliente, usuariosPrueba):
+    accessTokenA = obtenerAccessToken(cliente, "a@correo.com", "ClaveSegura123")
+    accessTokenB = obtenerAccessToken(cliente, "b@correo.com", "ClaveSegura123")
+
     respuestaEnvio = cliente.post(
         f"/messages/{usuariosPrueba['b']['id']}",
         json={
@@ -95,12 +109,14 @@ def testRecuperarMensajeDebeVerificarFirmaValida(cliente, usuariosPrueba):
             "senderPassword": "ClaveSegura123",
             "plaintext": "Mensaje con firma valida",
         },
+        headers={"Authorization": f"Bearer {accessTokenA}"},
     )
 
     assert respuestaEnvio.status_code == 201
 
     respuestaRecuperacion = cliente.get(
-        f"/messages/{usuariosPrueba['b']['id']}?password=ClaveSegura123"
+        f"/messages/{usuariosPrueba['b']['id']}?password=ClaveSegura123",
+        headers={"Authorization": f"Bearer {accessTokenB}"},
     )
 
     assert respuestaRecuperacion.status_code == 200
@@ -118,6 +134,9 @@ def testRecuperarMensajeDebeVerificarFirmaValida(cliente, usuariosPrueba):
 
 # Verifica deteccion de firma invalida al recuperar mensaje
 def testRecuperarMensajeDebeDetectarFirmaInvalida(cliente, usuariosPrueba):
+    accessTokenA = obtenerAccessToken(cliente, "a@correo.com", "ClaveSegura123")
+    accessTokenB = obtenerAccessToken(cliente, "b@correo.com", "ClaveSegura123")
+
     respuestaEnvio = cliente.post(
         f"/messages/{usuariosPrueba['b']['id']}",
         json={
@@ -125,6 +144,7 @@ def testRecuperarMensajeDebeDetectarFirmaInvalida(cliente, usuariosPrueba):
             "senderPassword": "ClaveSegura123",
             "plaintext": "Mensaje con firma a corromper",
         },
+        headers={"Authorization": f"Bearer {accessTokenA}"},
     )
 
     assert respuestaEnvio.status_code == 201
@@ -142,7 +162,8 @@ def testRecuperarMensajeDebeDetectarFirmaInvalida(cliente, usuariosPrueba):
         sesion.close()
 
     respuestaRecuperacion = cliente.get(
-        f"/messages/{usuariosPrueba['b']['id']}?password=ClaveSegura123"
+        f"/messages/{usuariosPrueba['b']['id']}?password=ClaveSegura123",
+        headers={"Authorization": f"Bearer {accessTokenB}"},
     )
 
     assert respuestaRecuperacion.status_code == 200
@@ -161,6 +182,7 @@ def testRecuperarMensajeDebeDetectarFirmaInvalida(cliente, usuariosPrueba):
 # Verifica envio grupal firmado y registro automatico en blockchain
 def testEnviarMensajeGrupalFirmadoGeneraFirmaClavesYBloque(cliente, usuariosPrueba):
     groupId = crearGrupoPrueba(cliente, usuariosPrueba)
+    accessTokenA = obtenerAccessToken(cliente, "a@correo.com", "ClaveSegura123")
 
     respuesta = cliente.post(
         f"/groups/{groupId}/messages",
@@ -169,6 +191,7 @@ def testEnviarMensajeGrupalFirmadoGeneraFirmaClavesYBloque(cliente, usuariosPrue
             "senderPassword": "ClaveSegura123",
             "plaintext": "Mensaje grupal firmado para blockchain",
         },
+        headers={"Authorization": f"Bearer {accessTokenA}"},
     )
 
     assert respuesta.status_code == 201
@@ -210,6 +233,8 @@ def testEnviarMensajeGrupalFirmadoGeneraFirmaClavesYBloque(cliente, usuariosPrue
 # Verifica recuperacion grupal con firma valida
 def testRecuperarMensajeGrupalDebeVerificarFirmaValida(cliente, usuariosPrueba):
     groupId = crearGrupoPrueba(cliente, usuariosPrueba)
+    accessTokenA = obtenerAccessToken(cliente, "a@correo.com", "ClaveSegura123")
+    accessTokenC = obtenerAccessToken(cliente, "c@correo.com", "ClaveSegura123")
 
     respuestaEnvio = cliente.post(
         f"/groups/{groupId}/messages",
@@ -218,12 +243,14 @@ def testRecuperarMensajeGrupalDebeVerificarFirmaValida(cliente, usuariosPrueba):
             "senderPassword": "ClaveSegura123",
             "plaintext": "Mensaje grupal con firma valida",
         },
+        headers={"Authorization": f"Bearer {accessTokenA}"},
     )
 
     assert respuestaEnvio.status_code == 201
 
     respuestaRecuperacion = cliente.get(
-        f"/messages/{usuariosPrueba['c']['id']}?password=ClaveSegura123"
+        f"/messages/{usuariosPrueba['c']['id']}?password=ClaveSegura123",
+        headers={"Authorization": f"Bearer {accessTokenC}"},
     )
 
     assert respuestaRecuperacion.status_code == 200
@@ -240,6 +267,8 @@ def testRecuperarMensajeGrupalDebeVerificarFirmaValida(cliente, usuariosPrueba):
 
 # Verifica que el endpoint de blockchain retorne la cadena completa
 def testBlockchainEndpointDebeRetornarCadenaCompleta(cliente, usuariosPrueba):
+    accessTokenA = obtenerAccessToken(cliente, "a@correo.com", "ClaveSegura123")
+
     cliente.post(
         f"/messages/{usuariosPrueba['b']['id']}",
         json={
@@ -247,6 +276,7 @@ def testBlockchainEndpointDebeRetornarCadenaCompleta(cliente, usuariosPrueba):
             "senderPassword": "ClaveSegura123",
             "plaintext": "Mensaje para revisar blockchain",
         },
+        headers={"Authorization": f"Bearer {accessTokenA}"},
     )
 
     respuesta = cliente.get("/blockchain")
@@ -264,6 +294,8 @@ def testBlockchainEndpointDebeRetornarCadenaCompleta(cliente, usuariosPrueba):
 
 # Verifica que el endpoint de verificacion detecte cadena valida
 def testBlockchainVerifyDebeRetornarCadenaValida(cliente, usuariosPrueba):
+    accessTokenA = obtenerAccessToken(cliente, "a@correo.com", "ClaveSegura123")
+
     cliente.post(
         f"/messages/{usuariosPrueba['b']['id']}",
         json={
@@ -271,6 +303,7 @@ def testBlockchainVerifyDebeRetornarCadenaValida(cliente, usuariosPrueba):
             "senderPassword": "ClaveSegura123",
             "plaintext": "Mensaje para validar cadena",
         },
+        headers={"Authorization": f"Bearer {accessTokenA}"},
     )
 
     respuesta = cliente.get("/blockchain/verify")
@@ -286,6 +319,8 @@ def testBlockchainVerifyDebeRetornarCadenaValida(cliente, usuariosPrueba):
 
 # Verifica que el endpoint de verificacion detecte corrupcion de hash
 def testBlockchainVerifyDebeDetectarCorrupcion(cliente, usuariosPrueba):
+    accessTokenA = obtenerAccessToken(cliente, "a@correo.com", "ClaveSegura123")
+
     cliente.post(
         f"/messages/{usuariosPrueba['b']['id']}",
         json={
@@ -293,6 +328,7 @@ def testBlockchainVerifyDebeDetectarCorrupcion(cliente, usuariosPrueba):
             "senderPassword": "ClaveSegura123",
             "plaintext": "Mensaje para corromper blockchain",
         },
+        headers={"Authorization": f"Bearer {accessTokenA}"},
     )
 
     sesion = SesionLocal()

@@ -2,10 +2,27 @@ from src.auth.baseDatos import SesionLocal
 from src.crypto.modelos import Grupo, GrupoMiembro, Mensaje, MensajeDestinatario
 
 
+# Obtiene access token para un usuario
+def obtenerAccessToken(cliente, email, password):
+    respuesta = cliente.post(
+        "/auth/login",
+        json={
+            "email": email,
+            "password": password,
+        },
+    )
+
+    assert respuesta.status_code == 200
+    return respuesta.json()["accessToken"]
+
+
 # Verifica envio y recuperacion de mensaje individual cifrado
 def testEnviarYRecuperarMensajeIndividual(cliente, usuariosPrueba):
     senderId = usuariosPrueba["a"]["id"]
     destId = usuariosPrueba["b"]["id"]
+
+    accessTokenA = obtenerAccessToken(cliente, "a@correo.com", "ClaveSegura123")
+    accessTokenB = obtenerAccessToken(cliente, "b@correo.com", "ClaveSegura123")
 
     respuestaEnvio = cliente.post(
         f"/messages/{destId}",
@@ -14,6 +31,7 @@ def testEnviarYRecuperarMensajeIndividual(cliente, usuariosPrueba):
             "senderPassword": "ClaveSegura123",
             "plaintext": "Hola mensaje individual cifrado",
         },
+        headers={"Authorization": f"Bearer {accessTokenA}"},
     )
 
     assert respuestaEnvio.status_code == 201
@@ -28,7 +46,10 @@ def testEnviarYRecuperarMensajeIndividual(cliente, usuariosPrueba):
     assert cuerpoEnvio["nonce"] != ""
     assert cuerpoEnvio["authTag"] != ""
 
-    respuestaRecuperacion = cliente.get(f"/messages/{destId}?password=ClaveSegura123")
+    respuestaRecuperacion = cliente.get(
+        f"/messages/{destId}?password=ClaveSegura123",
+        headers={"Authorization": f"Bearer {accessTokenB}"},
+    )
 
     assert respuestaRecuperacion.status_code == 200
 
@@ -48,6 +69,8 @@ def testCrearGrupo(cliente, usuariosPrueba):
     miembroB = usuariosPrueba["b"]["id"]
     miembroC = usuariosPrueba["c"]["id"]
 
+    accessTokenA = obtenerAccessToken(cliente, "a@correo.com", "ClaveSegura123")
+
     respuesta = cliente.post(
         "/groups",
         json={
@@ -55,6 +78,7 @@ def testCrearGrupo(cliente, usuariosPrueba):
             "creadoPor": creadoPor,
             "miembrosIds": [miembroB, miembroC],
         },
+        headers={"Authorization": f"Bearer {accessTokenA}"},
     )
 
     assert respuesta.status_code == 201
@@ -86,6 +110,10 @@ def testEnviarYRecuperarMensajeGrupal(cliente, usuariosPrueba):
     miembroB = usuariosPrueba["b"]["id"]
     miembroC = usuariosPrueba["c"]["id"]
 
+    accessTokenA = obtenerAccessToken(cliente, "a@correo.com", "ClaveSegura123")
+    accessTokenC = obtenerAccessToken(cliente, "c@correo.com", "ClaveSegura123")
+    accessTokenB = obtenerAccessToken(cliente, "b@correo.com", "ClaveSegura123")
+
     respuestaGrupo = cliente.post(
         "/groups",
         json={
@@ -93,6 +121,7 @@ def testEnviarYRecuperarMensajeGrupal(cliente, usuariosPrueba):
             "creadoPor": creadoPor,
             "miembrosIds": [miembroB, miembroC],
         },
+        headers={"Authorization": f"Bearer {accessTokenA}"},
     )
 
     assert respuestaGrupo.status_code == 201
@@ -106,6 +135,7 @@ def testEnviarYRecuperarMensajeGrupal(cliente, usuariosPrueba):
             "senderPassword": "ClaveSegura123",
             "plaintext": "Hola grupo este mensaje es cifrado",
         },
+        headers={"Authorization": f"Bearer {accessTokenB}"},
     )
 
     assert respuestaEnvio.status_code == 201
@@ -137,7 +167,10 @@ def testEnviarYRecuperarMensajeGrupal(cliente, usuariosPrueba):
     finally:
         sesion.close()
 
-    respuestaRecuperacion = cliente.get(f"/messages/{miembroC}?password=ClaveSegura123")
+    respuestaRecuperacion = cliente.get(
+        f"/messages/{miembroC}?password=ClaveSegura123",
+        headers={"Authorization": f"Bearer {accessTokenC}"},
+    )
     assert respuestaRecuperacion.status_code == 200
     cuerpoRecuperacion = respuestaRecuperacion.json()
     assert len(cuerpoRecuperacion["mensajes"]) == 1
@@ -152,6 +185,10 @@ def testEnviarYRecuperarMensajeGrupal(cliente, usuariosPrueba):
 def testRecuperarMensajesConPasswordIncorrecta(cliente, usuariosPrueba):
     senderId = usuariosPrueba["a"]["id"]
     destId = usuariosPrueba["b"]["id"]
+
+    accessTokenA = obtenerAccessToken(cliente, "a@correo.com", "ClaveSegura123")
+    accessTokenB = obtenerAccessToken(cliente, "b@correo.com", "ClaveSegura123")
+
     cliente.post(
         f"/messages/{destId}",
         json={
@@ -159,9 +196,13 @@ def testRecuperarMensajesConPasswordIncorrecta(cliente, usuariosPrueba):
             "senderPassword": "ClaveSegura123",
             "plaintext": "Mensaje protegido",
         },
+        headers={"Authorization": f"Bearer {accessTokenA}"},
     )
 
-    respuesta = cliente.get(f"/messages/{destId}?password=ClaveIncorrecta999")
+    respuesta = cliente.get(
+        f"/messages/{destId}?password=ClaveIncorrecta999",
+        headers={"Authorization": f"Bearer {accessTokenB}"},
+    )
     assert respuesta.status_code == 400
     assert (
         respuesta.json()["detail"]
@@ -172,6 +213,7 @@ def testRecuperarMensajesConPasswordIncorrecta(cliente, usuariosPrueba):
 # Verifica error al enviar mensaje a usuario inexistente
 def testEnviarMensajeAUsuarioInexistente(cliente, usuariosPrueba, uuidInexistente):
     senderId = usuariosPrueba["a"]["id"]
+    accessTokenA = obtenerAccessToken(cliente, "a@correo.com", "ClaveSegura123")
 
     respuesta = cliente.post(
         f"/messages/{uuidInexistente}",
@@ -180,6 +222,7 @@ def testEnviarMensajeAUsuarioInexistente(cliente, usuariosPrueba, uuidInexistent
             "senderPassword": "ClaveSegura123",
             "plaintext": "Mensaje a destino inexistente",
         },
+        headers={"Authorization": f"Bearer {accessTokenA}"},
     )
 
     assert respuesta.status_code == 404
