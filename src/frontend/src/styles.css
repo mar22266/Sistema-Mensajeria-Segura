@@ -300,6 +300,54 @@ textarea {
   margin: 22px 0;
 }
 
+.cabeceraContactos,
+.accionesContacto {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cabeceraContactos {
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.cabeceraContactos h3 {
+  margin-bottom: 0;
+}
+
+.listaContactos {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.contactoItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radioMedio);
+  background: #eff6ff;
+}
+
+.contactoItem strong,
+.contactoItem span {
+  display: block;
+}
+
+.contactoItem span,
+.sinContactos {
+  color: var(--grisOscuro);
+  margin-top: 4px;
+}
+
+.botonPeligroContacto {
+  margin-top: 0;
+}
+
 @media (max-width: 1100px) {
   .appContenedor {
     grid-template-columns: 1fr;
@@ -307,5 +355,10 @@ textarea {
 
   .gridPaneles {
     grid-template-columns: 1fr;
+  }
+
+  .contactoItem {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

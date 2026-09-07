@@ -71,6 +71,30 @@ export function refrescarSesion(payload) {
 }
 
 
+// Crea un contacto del usuario autenticado
+export function crearContacto(payload, token) {
+  return ejecutarPeticion("/contacts", "POST", payload, token);
+}
+
+
+// Obtiene los contactos del usuario autenticado
+export function obtenerContactos(token) {
+  return ejecutarPeticion("/contacts", "GET", null, token);
+}
+
+
+// Actualiza un contacto del usuario autenticado
+export function actualizarContacto(contactId, payload, token) {
+  return ejecutarPeticion(`/contacts/${contactId}`, "PUT", payload, token);
+}
+
+
+// Elimina un contacto del usuario autenticado
+export function eliminarContacto(contactId, token) {
+  return ejecutarPeticion(`/contacts/${contactId}`, "DELETE", null, token);
+}
+
+
 // Obtiene la llave publica de un usuario
 export function obtenerLlavePublica(userId, token) {
   return ejecutarPeticion(`/users/${userId}/key`, "GET", null, token);

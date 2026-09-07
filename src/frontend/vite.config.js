@@ -5,14 +5,15 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: "0.0.0.0",
-    port: 5173,
+    port: 18473,
     proxy: {
-      "/auth": "http://localhost:8000",
-      "/users": "http://localhost:8000",
-      "/messages": "http://localhost:8000",
-      "/groups": "http://localhost:8000",
-      "/blockchain": "http://localhost:8000",
-      "/salud": "http://localhost:8000"
+      "/auth": "http://localhost:17841",
+      "/users": "http://localhost:17841",
+      "/messages": "http://localhost:17841",
+      "/groups": "http://localhost:17841",
+      "/blockchain": "http://localhost:17841",
+      "/contacts": "http://localhost:17841",
+      "/salud": "http://localhost:17841"
     }
   }
 });

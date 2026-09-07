@@ -1,12 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  actualizarContacto,
+  crearContacto,
   crearGrupo,
+  eliminarContacto,
   enviarMensaje,
   enviarMensajeGrupal,
   habilitarMfa,
   loginConMfa,
   loginUsuario,
   obtenerBlockchain,
+  obtenerContactos,
   obtenerLlavePublica,
   recuperarMensajes,
   refrescarSesion,
@@ -22,6 +26,7 @@ const secciones = [
   { id: "mensajes", titulo: "Mensajes" },
   { id: "grupos", titulo: "Grupos" },
   { id: "blockchain", titulo: "Blockchain" },
+  { id: "contactos", titulo: "Contactos" },
   { id: "sesion", titulo: "Sesion" }
 ];
 
@@ -109,6 +114,12 @@ export default function App() {
   const [blockchainSalida, setBlockchainSalida] = useState("");
   const [verificacionSalida, setVerificacionSalida] = useState("");
   const [refreshInput, setRefreshInput] = useState(localStorage.getItem("refreshToken") || "");
+  const [contactos, setContactos] = useState([]);
+  const [contactoData, setContactoData] = useState({
+    id: "",
+    nombre: "",
+    email: ""
+  });
 
   const estadoSesion = useMemo(() => {
     return {
@@ -116,6 +127,12 @@ export default function App() {
       mfaActiva: sesion.mfaActiva === "true"
     };
   }, [sesion]);
+
+  useEffect(() => {
+    if (seccionActiva === "contactos" && estadoSesion.autenticado) {
+      cargarContactos();
+    }
+  }, [seccionActiva, sesion.accessToken]);
 
   function mostrarMensaje(texto, tipo) {
     setMensajeSistema({ texto, tipo });
@@ -190,6 +207,9 @@ export default function App() {
     });
 
     setRefreshInput("");
+    setContactos([]);
+    setContactoData({ id: "", nombre: "", email: "" });
+    setSeccionActiva("auth");
     mostrarMensaje("Sesion local cerrada", "advertencia");
   }
 
@@ -473,6 +493,66 @@ export default function App() {
     }
   }
 
+  async function cargarContactos() {
+    try {
+      const data = await obtenerContactos(sesion.accessToken);
+      setContactos(data);
+    } catch (error) {
+      mostrarMensaje(error.message, "error");
+    }
+  }
+
+  async function manejarGuardarContacto(event) {
+    event.preventDefault();
+
+    try {
+      if (contactoData.id) {
+        await actualizarContacto(
+          contactoData.id,
+          { nombre: contactoData.nombre, email: contactoData.email },
+          sesion.accessToken
+        );
+        mostrarMensaje("Contacto actualizado correctamente", "exito");
+      } else {
+        await crearContacto(
+          { nombre: contactoData.nombre, email: contactoData.email },
+          sesion.accessToken
+        );
+        mostrarMensaje("Contacto creado correctamente", "exito");
+      }
+
+      setContactoData({ id: "", nombre: "", email: "" });
+      await cargarContactos();
+    } catch (error) {
+      mostrarMensaje(error.message, "error");
+    }
+  }
+
+  function manejarEditarContacto(contacto) {
+    setContactoData({
+      id: contacto.id,
+      nombre: contacto.nombre,
+      email: contacto.email
+    });
+  }
+
+  async function manejarEliminarContacto(contacto) {
+    if (!window.confirm(`Eliminar el contacto ${contacto.nombre}?`)) {
+      return;
+    }
+
+    try {
+      await eliminarContacto(contacto.id, sesion.accessToken);
+      if (contactoData.id === contacto.id) {
+        setContactoData({ id: "", nombre: "", email: "" });
+      }
+      await cargarContactos();
+      mostrarMensaje("Contacto eliminado correctamente", "exito");
+    } catch (error) {
+      mostrarMensaje(error.message, "error");
+    }
+  }
+
   return (
     <div className="appContenedor">
       <aside className="barraLateral">
@@ -503,7 +583,7 @@ export default function App() {
         </div>
 
         <div className="menuSecciones">
-          {secciones.map((seccion) => (
+          {secciones.filter((seccion) => seccion.id !== "contactos" || estadoSesion.autenticado).map((seccion) => (
             <button
               key={seccion.id}
               className={`botonSeccion ${seccionActiva === seccion.id ? "activo" : ""}`}
@@ -793,6 +873,66 @@ export default function App() {
                 Verificar blockchain
               </button>
               <pre className="panelSalida">{verificacionSalida}</pre>
+            </div>
+          </section>
+        )}
+
+        {seccionActiva === "contactos" && estadoSesion.autenticado && (
+          <section className="gridPaneles">
+            <div className="tarjetaPanel">
+              <h3>{contactoData.id ? "Editar contacto" : "Agregar contacto"}</h3>
+              <form className="formularioPanel" onSubmit={manejarGuardarContacto}>
+                <input
+                  value={contactoData.nombre}
+                  onChange={(e) => setContactoData({ ...contactoData, nombre: e.target.value })}
+                  placeholder="Nombre"
+                  required
+                />
+                <input
+                  type="email"
+                  value={contactoData.email}
+                  onChange={(e) => setContactoData({ ...contactoData, email: e.target.value })}
+                  placeholder="Correo"
+                  required
+                />
+                <div className="accionesContacto">
+                  <button className="botonPrimario" type="submit">Guardar</button>
+                  {contactoData.id && (
+                    <button
+                      className="botonSecundario"
+                      type="button"
+                      onClick={() => setContactoData({ id: "", nombre: "", email: "" })}
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            <div className="tarjetaPanel">
+              <div className="cabeceraContactos">
+                <h3>Mis contactos</h3>
+                <button className="botonSecundario" onClick={cargarContactos}>Actualizar</button>
+              </div>
+              {contactos.length === 0 ? (
+                <p className="sinContactos">No hay contactos registrados.</p>
+              ) : (
+                <div className="listaContactos">
+                  {contactos.map((contacto) => (
+                    <article className="contactoItem" key={contacto.id}>
+                      <div>
+                        <strong>{contacto.nombre}</strong>
+                        <span>{contacto.email}</span>
+                      </div>
+                      <div className="accionesContacto">
+                        <button className="botonSecundario" onClick={() => manejarEditarContacto(contacto)}>Editar</button>
+                        <button className="botonPeligro botonPeligroContacto" onClick={() => manejarEliminarContacto(contacto)}>Eliminar</button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         )}

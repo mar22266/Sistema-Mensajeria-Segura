@@ -8,6 +8,7 @@ from src.api.main import app
 from src.auth.baseDatos import SesionLocal
 from src.auth.modelos import Usuario
 from src.blockchain.modelos import BloqueBlockchain
+from src.contacts.modelos import Contacto
 from src.crypto.modelos import Grupo, GrupoMiembro, Mensaje, MensajeDestinatario
 
 
@@ -16,6 +17,7 @@ from src.crypto.modelos import Grupo, GrupoMiembro, Mensaje, MensajeDestinatario
 def limpiarBaseDatos():
     sesion = SesionLocal()
     try:
+        sesion.query(Contacto).delete()
         sesion.query(MensajeDestinatario).delete()
         sesion.query(Mensaje).delete()
         sesion.query(GrupoMiembro).delete()
@@ -26,6 +28,7 @@ def limpiarBaseDatos():
 
         yield
 
+        sesion.query(Contacto).delete()
         sesion.query(MensajeDestinatario).delete()
         sesion.query(Mensaje).delete()
         sesion.query(GrupoMiembro).delete()

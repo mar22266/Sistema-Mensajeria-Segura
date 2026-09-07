@@ -7,6 +7,8 @@ from src.auth import modelos
 from src.blockchain import modelos as modelosBlockchain
 from src.blockchain.rutas import routerBlockchain
 from src.blockchain.servicio import asegurarBloqueGenesis
+from src.contacts import modelos as modelosContacts
+from src.contacts.rutas import routerContacts
 from src.crypto import modelos as modelosCrypto
 from src.auth.baseDatos import Base, SesionLocal, motorBaseDatos
 from src.auth.configuracion import configuracion
@@ -40,6 +42,7 @@ app.include_router(routerAuth)
 app.include_router(routerUsers)
 app.include_router(routerMessages)
 app.include_router(routerBlockchain)
+app.include_router(routerContacts)
 
 
 # Verifica que la API este activa
