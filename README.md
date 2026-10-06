@@ -182,7 +182,9 @@ cd Sistema-Mensajeria-Segura
 
 ### Paso 2 — Levantar backend y base de datos
 
-Desde la raíz del proyecto ejecutar:
+Primero, crear `.env` a partir de `.env.example` y reemplazar las dos variables
+`CAMBIAR_*` con valores aleatorios. El archivo `.env` queda fuera de Git.
+Después, desde la raíz del proyecto ejecutar:
 
 ```bash
 docker compose up --build
@@ -198,13 +200,13 @@ Esto levanta:
 Abrir en el navegador:
 
 ```
-http://localhost:8000/docs
+http://localhost:17841/docs
 ```
 
 También puede verificar el estado de salud:
 
 ```
-http://localhost:8000/salud/db
+http://localhost:17841/salud/db
 ```
 
 Si todo está bien, la API debe responder que la base de datos está conectada.
@@ -245,10 +247,10 @@ npm run dev
 ### Paso 4 — Abrir el frontend
 
 ```
-http://localhost:5173
+http://localhost:18473
 ```
 
-> El frontend usa proxy hacia `http://localhost:8000`, por lo que el backend debe estar ejecutándose al mismo tiempo.
+> El frontend usa proxy hacia `http://localhost:17841`, por lo que el backend debe estar ejecutándose al mismo tiempo.
 
 ---
 
@@ -287,10 +289,12 @@ docker exec -it sistema_mensajeria_db psql -U postgres -d sistema_mensajeria_seg
 
 ## Cómo Ejecutar los Tests
 
-Con los contenedores arriba, ejecutar:
+Con los contenedores arriba, crear una sola vez una base local exclusiva para
+tests (si ya existe, omitir el primer comando) y ejecutar:
 
 ```bash
-docker exec -it sistema_mensajeria_api pytest -v
+docker compose exec -T db createdb -U postgres sistema_mensajeria_segura_test
+docker compose run --rm --no-deps -e BaseDatosNombre=sistema_mensajeria_segura_test api pytest -v --cov=src --cov-branch --cov-report=xml:coverage.xml
 ```
 
 Esto corre todos los tests de:
@@ -301,3 +305,32 @@ Esto corre todos los tests de:
 - Módulo 4
 
 ---
+
+## Preparación del laboratorio DAST
+
+El `docker-compose.yml` entregado para SonarQube se ejecuta por separado; el
+`docker-compose.yaml` de este repositorio levanta únicamente la aplicación y
+su base de datos. El archivo `sonar-project.properties` define la versión
+`fase1`, el código fuente, los tests y la ruta del reporte de cobertura. El
+token de SonarQube se pasa como variable de entorno `SONAR_TOKEN`, nunca en
+el repositorio.
+
+El comando anterior genera `coverage.xml` desde la raíz del repositorio. Los
+tests limpian todas las tablas de la base de datos configurada; por eso usan
+`sistema_mensajeria_segura_test` y no la base de la aplicación. Luego se puede
+ejecutar `sonar-scanner` desde la raíz, con SonarQube activo en
+`http://localhost:9000` y `SONAR_TOKEN` definido en el entorno. En la interfaz
+de SonarQube, configurar *New Code* como *Previous version* y el Quality Gate
+del curso.
+
+Para ZAP, usar el frontend `http://localhost:18473` y la definición OpenAPI
+`http://localhost:17841/openapi.json` para el API scan. Registrar dos usuarios
+de prueba después de correr los tests; iniciar sesión sin MFA con uno de ellos
+y usar su `accessToken` como encabezado `Authorization: Bearer <token>` en las
+peticiones autenticadas de ZAP. El token vence según `JWTMinutosExpiracion` en
+`.env`, así que hay que renovarlo antes de un escaneo prolongado. Los datos y
+tokens de prueba deben mantenerse fuera del repositorio y de las capturas.
+
+Para la Fase 2, cambiar `sonar.projectVersion` a `fase2`, generar de nuevo
+`coverage.xml` con las pruebas de regresión y repetir el escaneo ZAP sobre los
+mismos objetivos.
