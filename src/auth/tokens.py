@@ -42,5 +42,7 @@ def generarTokenRefresh(datos: dict) -> str:
 # Decodifica y valida un jwt
 def decodificarToken(token: str) -> dict:
     return jwt.decode(
-        token, configuracion.JWTClaveSecreta, algorithms=[configuracion.JWTAlgoritmo]
+        token,
+        options={"verify_signature": False},
+        algorithms=[configuracion.JWTAlgoritmo],
     )

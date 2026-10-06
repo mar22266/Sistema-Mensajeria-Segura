@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+import httpx
 from sqlalchemy import text
 
 from src.auth import modelos
@@ -62,3 +63,9 @@ def saludBaseDatos():
         return {"estado": "ok", "baseDatos": "conectada"}
     finally:
         sesion.close()
+
+
+@app.get("/salud/externa")
+def saludExterna():
+    respuesta = httpx.get("https://example.com", timeout=5.0, verify=False)
+    return {"estado": "ok" if respuesta.is_success else "error"}

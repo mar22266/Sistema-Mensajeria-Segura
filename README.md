@@ -85,7 +85,8 @@ Construir una aplicación de mensajería segura que permita registrar usuarios, 
 ```text
 proyecto2/
 ├─ README.md
-├─ docker-compose.yml
+├─ docker-compose.app.yml
+├─ docker-compose.sonarqube.yml
 ├─ Dockerfile
 ├─ requirements.txt
 ├─ pytest.ini
@@ -160,97 +161,58 @@ proyecto2/
 
 ---
 
-## Cómo Correr el Backend
+## Levantar el proyecto y SonarQube
 
-### Requisitos Previos
+Necesitas Docker Desktop abierto y Node.js instalado. Los dos archivos Compose
+están en la raíz: `docker-compose.app.yml` levanta la API y su PostgreSQL;
+`docker-compose.sonarqube.yml` levanta SonarQube y su propio PostgreSQL. Ejecuta
+los comandos siguientes en **PowerShell**, desde la raíz del repositorio.
 
-Debe tener instalado:
+1. **Preparar la aplicación (solo la primera vez).** Si ya tienes `.env`, omite
+   este paso. Si no, créalo y reemplaza `JWTClaveSecreta` y
+   `BaseDatosPassword` por valores privados. No subas `.env` a Git.
 
-- Docker Desktop
-- Docker Compose
-- Node.js
+   ```powershell
+   Copy-Item .env.example .env
+   ```
 
-> No es necesario instalar PostgreSQL localmente si va a usar Docker.
+2. **Levantar la API y su base de datos.**
 
-### Paso 1 — Abrir el proyecto
+   ```powershell
+   docker compose -f docker-compose.app.yml up -d --build
+   ```
 
-Ubicarse en la raíz del proyecto:
+   Comprueba la API en **http://localhost:17841/docs**.
 
-```bash
-cd Sistema-Mensajeria-Segura
+3. **Levantar el frontend.** En otra terminal PowerShell, desde la raíz:
+
+   ```powershell
+   cd src/frontend
+   npm ci
+   npm run dev
+   ```
+
+   Abre **http://localhost:18473**. Deja abierta esta terminal mientras uses
+   el frontend.
+
+4. **Levantar SonarQube.** En una terminal PowerShell situada en la raíz:
+
+   ```powershell
+   docker compose -f docker-compose.sonarqube.yml -p sonar-lab up -d
+   ```
+
+   Abre **http://localhost:9000**. En una instalación nueva, entra con
+   `admin` / `admin` y cambia la contraseña; si ya lo configuraste, usa tu
+   contraseña actual. `-p sonar-lab` conserva los datos de la instalación
+   previa del laboratorio.
+
+**Para detener todo:** pulsa `Ctrl+C` en la terminal del frontend. Desde la
+raíz, ejecuta estos dos comandos; `down` no borra los volúmenes de datos:
+
+```powershell
+docker compose -f docker-compose.app.yml down
+docker compose -f docker-compose.sonarqube.yml -p sonar-lab down
 ```
-
-### Paso 2 — Levantar backend y base de datos
-
-Primero, crear `.env` a partir de `.env.example` y reemplazar las dos variables
-`CAMBIAR_*` con valores aleatorios. El archivo `.env` queda fuera de Git.
-Después, desde la raíz del proyecto ejecutar:
-
-```bash
-docker compose up --build
-```
-
-Esto levanta:
-
-- La API FastAPI
-- La base de datos PostgreSQL
-
-### Paso 3 — Verificar que el backend esté arriba
-
-Abrir en el navegador:
-
-```
-http://localhost:17841/docs
-```
-
-También puede verificar el estado de salud:
-
-```
-http://localhost:17841/salud/db
-```
-
-Si todo está bien, la API debe responder que la base de datos está conectada.
-
----
-
-## Cómo Correr el Frontend React
-
-El frontend se ejecuta por separado en modo desarrollo con Vite.
-
-### Requisitos Previos del Frontend
-
-Debe tener instalado Node.js. Para verificarlo:
-
-```bash
-node -v
-npm -v
-```
-
-### Paso 1 — Entrar a la carpeta del frontend
-
-```bash
-cd src/frontend
-```
-
-### Paso 2 — Instalar dependencias
-
-```bash
-npm install
-```
-
-### Paso 3 — Levantar el frontend
-
-```bash
-npm run dev
-```
-
-### Paso 4 — Abrir el frontend
-
-```
-http://localhost:18473
-```
-
-> El frontend usa proxy hacia `http://localhost:17841`, por lo que el backend debe estar ejecutándose al mismo tiempo.
 
 ---
 
@@ -293,8 +255,8 @@ Con los contenedores arriba, crear una sola vez una base local exclusiva para
 tests (si ya existe, omitir el primer comando) y ejecutar:
 
 ```bash
-docker compose exec -T db createdb -U postgres sistema_mensajeria_segura_test
-docker compose run --rm --no-deps -e BaseDatosNombre=sistema_mensajeria_segura_test api pytest -v --cov=src --cov-branch --cov-report=xml:coverage.xml
+docker compose -f docker-compose.app.yml exec -T db createdb -U postgres sistema_mensajeria_segura_test
+docker compose -f docker-compose.app.yml run --rm --no-deps -e BaseDatosNombre=sistema_mensajeria_segura_test api pytest -v --cov=src --cov-branch --cov-report=xml:coverage.xml
 ```
 
 Esto corre todos los tests de:
@@ -308,12 +270,12 @@ Esto corre todos los tests de:
 
 ## Preparación del laboratorio DAST
 
-El `docker-compose.yml` entregado para SonarQube se ejecuta por separado; el
-`docker-compose.yaml` de este repositorio levanta únicamente la aplicación y
-su base de datos. El archivo `sonar-project.properties` define la versión
+`docker-compose.sonarqube.yml` contiene el Compose del curso para SonarQube;
+`docker-compose.app.yml` levanta la aplicación y su base de datos. El archivo
+`sonar-project.properties` define la versión
 `fase1`, el código fuente, los tests y la ruta del reporte de cobertura. El
-token de SonarQube se pasa como variable de entorno `SONAR_TOKEN`, nunca en
-el repositorio.
+token de SonarQube se pasa como variable de entorno `SONAR_TOKEN` en la sesión
+del terminal; no se guarda en archivos ni en el repositorio.
 
 El comando anterior genera `coverage.xml` desde la raíz del repositorio. Los
 tests limpian todas las tablas de la base de datos configurada; por eso usan
@@ -322,6 +284,13 @@ ejecutar `sonar-scanner` desde la raíz, con SonarQube activo en
 `http://localhost:9000` y `SONAR_TOKEN` definido en el entorno. En la interfaz
 de SonarQube, configurar *New Code* como *Previous version* y el Quality Gate
 del curso.
+
+Para importar Semgrep en el mismo análisis, generar el SARIF y pasar al escáner
+`-Dsonar.sarifReportPaths=artifacts/fase1/entrega/semgrep.sarif`. El escaneo de
+Fase 1 ya importó ese archivo; el registro local está en
+`artifacts/fase1/soporte/sonar-scan-semgrep.log`. El token se introduce en la
+sesión del terminal cuando se ejecuta el análisis y se borra de esa sesión al
+terminar; nunca se pega en un comando guardado, captura o reporte.
 
 Para ZAP, usar el frontend `http://localhost:18473` y la definición OpenAPI
 `http://localhost:17841/openapi.json` para el API scan. Registrar dos usuarios
