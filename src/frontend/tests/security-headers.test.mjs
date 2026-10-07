@@ -71,3 +71,15 @@ test("Vite entrega CSP y nosniff sin bloquear el script de React Refresh", async
     assert.ok(index.headers.get("content-security-policy")?.includes("frame-ancestors 'none'"));
   });
 });
+
+test("Vite bloquea la carga del frontend en marcos ajenos", async () => {
+  await withDevServer(async (url) => {
+    for (const ruta of ["/", "/index.html"]) {
+      const respuesta = await fetch(`${url}${ruta}`);
+      assert.equal(respuesta.headers.get("x-frame-options"), "DENY");
+      assert.ok(
+        respuesta.headers.get("content-security-policy")?.includes("frame-ancestors 'none'")
+      );
+    }
+  });
+});

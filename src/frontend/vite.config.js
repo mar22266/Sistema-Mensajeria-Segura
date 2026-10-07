@@ -50,6 +50,7 @@ function cspConNonce() {
           response.setHeader("Content-Type", "text/html; charset=utf-8");
           response.setHeader("Content-Security-Policy", contentSecurityPolicy(nonce));
           response.setHeader("X-Content-Type-Options", "nosniff");
+          response.setHeader("X-Frame-Options", "DENY");
           response.end(htmlConNonce);
         } catch (error) {
           next(error);
@@ -66,7 +67,8 @@ export default defineConfig({
     port: 18473,
     cors: false,
     headers: {
-      "X-Content-Type-Options": "nosniff"
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
     },
     proxy: {
       "/auth": "http://localhost:17841",
