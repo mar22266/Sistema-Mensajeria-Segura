@@ -37,7 +37,7 @@ def crear_token(tipo="access", clave=None, algoritmo=None, expira_en=5, headers=
 
 
 def test_token_de_otra_clave_no_autoriza_acceso():
-    token = crear_token(clave="clave-de-prueba-distinta")
+    token = crear_token(clave="clave-de-prueba-distinta-de-mas-de-32-bytes")
     credenciales = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
     with pytest.raises(HTTPException) as error:
@@ -47,7 +47,7 @@ def test_token_de_otra_clave_no_autoriza_acceso():
 
 
 def test_refresh_firmado_con_otra_clave_no_crea_sesion():
-    token = crear_token(tipo="refresh", clave="clave-de-prueba-distinta")
+    token = crear_token(tipo="refresh", clave="clave-de-prueba-distinta-de-mas-de-32-bytes")
 
     with pytest.raises(jwt.InvalidTokenError):
         refrescarSesionUsuario(token)
@@ -72,6 +72,13 @@ def test_token_sin_expiracion_se_rechaza():
         configuracion.JWTClaveSecreta,
         algorithm=configuracion.JWTAlgoritmo,
     )
+
+    with pytest.raises(jwt.InvalidTokenError):
+        decodificarToken(token)
+
+
+def test_extension_crit_desconocida_se_rechaza():
+    token = crear_token(headers={"crit": ["politica-desconocida"], "politica-desconocida": True})
 
     with pytest.raises(jwt.InvalidTokenError):
         decodificarToken(token)
