@@ -255,12 +255,15 @@ docker exec -it sistema_mensajeria_db psql -U postgres -d sistema_mensajeria_seg
 ## Cómo Ejecutar los Tests
 
 Con los contenedores arriba, crear una sola vez una base local exclusiva para
-tests (si ya existe, omitir el primer comando) y ejecutar:
+tests (si ya existe, omitir `createdb`) y ejecutar. La cobertura de
+Fase 2 se guarda donde SonarQube la buscará:
 
-```bash
+```powershell
+New-Item -ItemType Directory -Force artifacts\fase2 | Out-Null
+
 docker compose -f docker-compose.app.yml exec -T db createdb -U postgres sistema_mensajeria_segura_test
 
-docker compose -f docker-compose.app.yml run --rm --no-deps -e BaseDatosNombre=sistema_mensajeria_segura_test api pytest -v --cov=src --cov-branch --cov-report=xml:coverage.xml
+docker compose -f docker-compose.app.yml run --rm --no-deps -e BaseDatosNombre=sistema_mensajeria_segura_test api pytest -v --cov=src --cov-branch --cov-report=xml:artifacts/fase2/coverage.xml
 ```
 
 Esto corre todos los tests de:
@@ -277,9 +280,10 @@ Esto corre todos los tests de:
 Haz estos pasos en **PowerShell, desde la raíz del repositorio**. Ya están
 incluidos `docker-compose.sonarqube.yml`, `docker-compose.app.yml` y
 `sonar-project.properties`. Este último tiene la clave del proyecto, la versión
-`fase1`, las rutas del código y los tests, las exclusiones y la ruta de
-`coverage.xml`. No guarda credenciales. Como `artifacts/` y `coverage.xml`
-están ignorados por Git, tendrás que generarlos después de clonar el proyecto.
+`fase2`, las rutas del código y los tests, las exclusiones y las rutas de
+`artifacts/fase2/coverage.xml` y `artifacts/fase2/semgrep.sarif`. No guarda
+credenciales. `artifacts/` está ignorado por Git: tendrás que crear la carpeta
+y generar esos dos archivos después de clonar el proyecto.
 
 ### 1. Levantar SonarQube y entrar por primera vez
 
@@ -305,8 +309,8 @@ El proyecto, el Quality Gate y el token se crean en la interfaz la primera vez.
 2. En **Projects → Create Project → Local Project**, crea el proyecto con la
    clave `sistema-mensajeria-segura` y el nombre **Sistema de Mensajeria
    Segura**. Usa esa misma clave porque así aparece en `sonar-project.properties`.
-3. En **Project Settings → New Code**, elige **Previous version**. La versión
-   inicial `fase1` ya está en `sonar-project.properties`.
+3. En **Project Settings → New Code**, elige **Previous version**. El análisis
+   de Fase 1 es la línea base; la versión actual del archivo es `fase2`.
 
 ### 3. Generar el token de análisis
 
@@ -323,36 +327,40 @@ quita de esa sesión.
 ### 4. Generar la cobertura que importará SonarQube
 
 Levanta la aplicación con el paso 2 de **Levantar el proyecto y SonarQube**.
-Después crea la base de pruebas, si todavía no existe, y ejecuta los tests:
+Después crea la carpeta local de Fase 2 y la base de pruebas, si todavía no
+existe, y ejecuta los tests:
 
 ```powershell
+New-Item -ItemType Directory -Force artifacts\fase2 | Out-Null
+
 docker compose -f docker-compose.app.yml exec -T db createdb -U postgres sistema_mensajeria_segura_test
 
-docker compose -f docker-compose.app.yml run --rm --no-deps -e BaseDatosNombre=sistema_mensajeria_segura_test api pytest -v --cov=src --cov-branch --cov-report=xml:coverage.xml
+docker compose -f docker-compose.app.yml run --rm --no-deps -e BaseDatosNombre=sistema_mensajeria_segura_test api pytest -v --cov=src --cov-branch --cov-report=xml:artifacts/fase2/coverage.xml
 ```
 
-Si la base de pruebas ya existe, salta el primer comando. El segundo crea
-`coverage.xml` en la raíz. Usa siempre `sistema_mensajeria_segura_test` para
-estas pruebas porque los tests limpian sus tablas. Comprueba que el archivo se
-haya creado:
+Si la base de pruebas ya existe, salta el comando `createdb`. El último crea
+`artifacts/fase2/coverage.xml`; SonarQube ya no lee el `coverage.xml` de la raíz.
+Usa siempre `sistema_mensajeria_segura_test` para estas pruebas porque los tests
+limpian sus tablas. Comprueba que el archivo se haya creado:
 
 ```powershell
-Test-Path coverage.xml
+Test-Path artifacts\fase2\coverage.xml
 ```
 
 Debe devolver `True`.
 
 ### 5. Generar `semgrep.sarif` con el código actual
 
-La carpeta `artifacts/` no viene al clonar el repositorio. Créala y ejecuta
-Semgrep en Docker. Necesitas Internet para descargar las reglas:
+La carpeta `artifacts/fase2/` no viene al clonar el repositorio. Si no la
+creaste en el paso anterior, créala ahora. Necesitas Internet para descargar
+las reglas de Semgrep:
 
 ```powershell
-New-Item -ItemType Directory -Force artifacts\fase1\entrega | Out-Null
+New-Item -ItemType Directory -Force artifacts\fase2 | Out-Null
 
-docker run --rm -v "${PWD}:/src" -w /src semgrep/semgrep semgrep scan --config auto --sarif-output artifacts/fase1/entrega/semgrep.sarif src
+docker run --rm -v "${PWD}:/src" -w /src semgrep/semgrep semgrep scan --config auto --sarif-output artifacts/fase2/semgrep.sarif src
 
-Test-Path artifacts\fase1\entrega\semgrep.sarif
+Test-Path artifacts\fase2\semgrep.sarif
 ```
 
 El último comando debe devolver `True`. `semgrep.sarif` guarda los resultados
@@ -362,14 +370,14 @@ versión distinta del código.
 
 ### 6. Ejecutar SonarScanner e importar Semgrep
 
-Con SonarQube abierto y los dos archivos listos (`coverage.xml` y
-`semgrep.sarif`), ejecuta este bloque. Cuando aparezca **Pega el token de
-SonarQube**, pega el token que generaste en el paso 3.
+Con SonarQube abierto y los dos archivos de `artifacts/fase2/` listos, ejecuta
+este bloque. Cuando aparezca **Pega el token de SonarQube**, pega el token que
+generaste en el paso 3.
 
 ```powershell
-if (-not (Test-Path coverage.xml)) { throw "Falta coverage.xml; ejecuta el paso 4." }
+if (-not (Test-Path artifacts\fase2\coverage.xml)) { throw "Falta la cobertura de Fase 2; ejecuta el paso 4." }
 
-if (-not (Test-Path artifacts\fase1\entrega\semgrep.sarif)) { throw "Falta semgrep.sarif; ejecuta el paso 5." }
+if (-not (Test-Path artifacts\fase2\semgrep.sarif)) { throw "Falta semgrep.sarif de Fase 2; ejecuta el paso 5." }
 
 $tokenSeguro = Read-Host "Pega el token de SonarQube" -AsSecureString
 
@@ -382,7 +390,7 @@ try {
         -v "${PWD}:/usr/src" `
         sonarsource/sonar-scanner-cli:latest `
         -Dsonar.working.directory=/tmp/.scannerwork `
-        -Dsonar.sarifReportPaths=artifacts/fase1/entrega/semgrep.sarif
+        -Dsonar.sarifReportPaths=artifacts/fase2/semgrep.sarif
 
     if ($LASTEXITCODE -ne 0) { throw "SonarScanner falló; revisa el error anterior." }
 } finally {
