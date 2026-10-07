@@ -252,7 +252,7 @@ docker exec -it sistema_mensajeria_db psql -U postgres -d sistema_mensajeria_seg
 
 ---
 
-## Cómo Ejecutar los Tests
+## Cómo Ejecutar los Tests del código actual
 
 Con los contenedores arriba, crear una sola vez una base local exclusiva para
 tests (si ya existe, omitir `createdb`) y ejecutar. La cobertura de
@@ -275,7 +275,27 @@ Esto corre todos los tests de:
 
 ---
 
-## Preparación del laboratorio DAST
+## Evidencia de Fase 1 y Fase 2
+
+La línea base de **Fase 1** se analizó con el código del commit `4e8fea8` y
+`sonar.projectVersion=fase1`. En esa corrida, SonarQube leyó el `coverage.xml`
+de la raíz. Se conservó una copia local en
+`artifacts/fase1/soporte/coverage.xml`, junto con los reportes y capturas de
+`artifacts/fase1/entrega/`. El PDF de Fase 1 está en esa carpeta.
+
+El código actual de `main` corresponde a **Fase 2**. Su análisis usa
+`sonar.projectVersion=fase2`, `artifacts/fase2/coverage.xml` y
+`artifacts/fase2/semgrep.sarif`. Cada fase conserva sus resultados para la
+comparación. El `coverage.xml` que todavía aparece en la raíz es un resultado
+anterior; la configuración actual de SonarQube no lo lee.
+
+`artifacts/` está ignorado por Git. Quien clone el repositorio deberá generar
+los resultados de Fase 2 con los pasos siguientes y recibir los entregables de
+Fase 1 por separado. Para consultar las instrucciones originales de la línea
+base, ejecuta `git show 4e8fea8:README.md`; reproducir exactamente ese análisis
+requiere el código de ese commit, no el código ya corregido de `main`.
+
+## Preparación del laboratorio DAST — Fase 2
 
 Haz estos pasos en **PowerShell, desde la raíz del repositorio**. Ya están
 incluidos `docker-compose.sonarqube.yml`, `docker-compose.app.yml` y
